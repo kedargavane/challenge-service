@@ -1,0 +1,70 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Challenge {
+  id           String        @id @default(cuid())
+  name         String
+  startDate    DateTime      @map("start_date") @db.Date
+  endDate      DateTime      @map("end_date") @db.Date
+  createdAt    DateTime      @default(now()) @map("created_at")
+  participants Participant[]
+
+  @@map("challenges")
+}
+
+model Participant {
+  id                  String       @id @default(cuid())
+  challengeId         String       @map("challenge_id")
+  challenge           Challenge    @relation(fields: [challengeId], references: [id])
+  // The user_id assigned by the Open Wearables instance — no timezone is
+  // stored here. Local dates are derived per-event from whatever offset
+  // the wearable device itself recorded, not a per-person setting.
+  openWearablesUserId String       @map("open_wearables_user_id")
+  displayName         String       @map("display_name")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  pointEvents         PointEvent[]
+  bodyMetrics         BodyMetric[]
+
+  @@unique([challengeId, openWearablesUserId])
+  @@map("participants")
+}
+
+model PointEvent {
+  id            String      @id @default(cuid())
+  participantId String      @map("participant_id")
+  participant   Participant @relation(fields: [participantId], references: [id])
+  // "steps" | "sleep" | "workout"
+  activityType  String      @map("activity_type")
+  points        Int
+  // The calendar date as reported by the device/provider for this
+  // reading — device-local, not UTC and not a fixed per-person timezone.
+  occurredDate  DateTime    @map("occurred_date") @db.Date
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  // One row per person, per activity type, per local day. Makes both the
+  // webhook path and the reconciliation cron idempotent — safe to re-run.
+  @@unique([participantId, activityType, occurredDate])
+  @@map("point_events")
+}
+
+model BodyMetric {
+  id            String      @id @default(cuid())
+  participantId String      @map("participant_id")
+  participant   Participant @relation(fields: [participantId], references: [id])
+  date          DateTime    @db.Date
+  weightKg      Float?      @map("weight_kg")
+  bmi           Float?
+  bodyFatPct    Float?      @map("body_fat_pct")
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  // Manual entry — not scored, shown only for group comparison.
+  @@unique([participantId, date])
+  @@map("body_metrics")
+}

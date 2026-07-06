@@ -1,0 +1,145 @@
+.page {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.header h1 {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+.daysLeft {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--amber-dark);
+  background: color-mix(in srgb, var(--amber) 15%, white);
+  padding: 6px 12px;
+  border-radius: 999px;
+  margin: 0;
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 48px 1fr auto auto auto 72px;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.leader {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 6%, white);
+}
+
+.rank {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--ink-muted);
+}
+
+.leader .rank {
+  color: var(--amber-dark);
+}
+
+.name {
+  font-weight: 600;
+}
+
+.stat {
+  font-size: 13px;
+  color: var(--ink-muted);
+  text-align: center;
+  min-width: 52px;
+}
+
+.statLabel {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  margin-bottom: 2px;
+}
+
+.statValue {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.total {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  text-align: right;
+}
+
+.empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--ink-muted);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 360px;
+  margin-top: 24px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.form input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.form button {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--sage);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.form button:hover {
+  background: var(--sage-dark);
+}
