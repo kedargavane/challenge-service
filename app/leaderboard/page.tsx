@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/db";
 import styles from "./leaderboard.module.css";
+import ScoreGauge from "@/components/ScoreGauge";
+import MetricsBarChart from "@/components/MetricsBarChart";
 
 export const dynamic = "force-dynamic";
 
 const DEFAULT_CHALLENGE_NAME = "LGMF Spain-Fit Challenge";
+const GAUGE_ACCENTS = ["--amber", "--teal", "--sage", "--amber-dark", "--teal-dark", "--sage-dark"];
 
 function toDateStr(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -59,12 +62,29 @@ export default async function LeaderboardPage() {
   const today = toDateStr(new Date());
   const challengeStart = challenge ? toDateStr(new Date(challenge.startDate)) : today;
   const challengeEndRaw = challenge ? toDateStr(new Date(challenge.endDate)) : today;
-  // Only show up through today -- future days have no data yet.
   const gridEnd = challengeEndRaw < today ? challengeEndRaw : today;
   const days = challenge ? buildDayList(challengeStart, gridEnd) : [];
+  const maxPossiblePoints = days.length * 3;
+
+  const chartData = rows.map((r) => ({
+    name: r.name,
+    Steps: r.totals.steps,
+    Sleep: r.totals.sleep,
+    Workout: r.totals.workout,
+  }));
 
   return (
     <main className={styles.page}>
+      <div className={styles.tagRow}>
+        <span className={styles.tag}>30-day challenge</span>
+        {challenge && (
+          <span className={styles.tag}>
+            {toDateStr(new Date(challenge.startDate))} – {toDateStr(new Date(challenge.endDate))}
+          </span>
+        )}
+        <span className={styles.tag}>{rows.length} participants</span>
+      </div>
+
       <header className={styles.header}>
         <h1>{challenge?.name ?? DEFAULT_CHALLENGE_NAME}</h1>
         {daysLeft !== null && <p className={styles.daysLeft}>{daysLeft} days left</p>}
@@ -74,6 +94,22 @@ export default async function LeaderboardPage() {
         <div className={styles.empty}>No participants yet — add some to get started.</div>
       ) : (
         <>
+          <section className={styles.gaugeSection}>
+            <p className={styles.eyebrow}>Progress</p>
+            <div className={styles.gaugeRow}>
+              {rows.map((r, i) => (
+                <ScoreGauge
+                  key={r.id}
+                  label={r.name}
+                  value={r.total}
+                  max={maxPossiblePoints}
+                  accent={GAUGE_ACCENTS[i % GAUGE_ACCENTS.length]}
+                />
+              ))}
+            </div>
+          </section>
+
+          <p className={styles.eyebrow}>Leaderboard</p>
           <div className={styles.board}>
             {rows.map((r, i) => (
               <div key={r.id} className={i === 0 ? `${styles.row} ${styles.leader}` : styles.row}>
@@ -95,6 +131,13 @@ export default async function LeaderboardPage() {
               </div>
             ))}
           </div>
+
+          <section className={styles.chartSection}>
+            <p className={styles.eyebrow}>Compare</p>
+            <div className={styles.chartCard}>
+              <MetricsBarChart data={chartData} />
+            </div>
+          </section>
 
           {days.length > 0 && (
             <section className={styles.gridSection}>

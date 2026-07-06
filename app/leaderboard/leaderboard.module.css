@@ -162,3 +162,67 @@
 .dotStepsOn { background: var(--amber); }
 .dotSleepOn { background: var(--teal); }
 .dotWorkoutOn { background: var(--sage); }
+/* Eyebrow labels, gauge row, chart card -- structural devices borrowed
+   from openwearables.io (numbered features, score rings, section labels)
+   applied to our existing amber/teal/sage scoreboard theme. */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber-dark);
+  margin-bottom: 8px;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.tagRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+}
+
+.gaugeSection {
+  margin-bottom: 40px;
+}
+
+.gaugeRow {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.chartSection {
+  margin: 40px 0;
+}
+
+.chartCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 16px 8px;
+}
