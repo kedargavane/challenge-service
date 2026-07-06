@@ -75,16 +75,6 @@ export default async function LeaderboardPage() {
 
   return (
     <main className={styles.page}>
-      <div className={styles.tagRow}>
-        <span className={styles.tag}>30-day challenge</span>
-        {challenge && (
-          <span className={styles.tag}>
-            {toDateStr(new Date(challenge.startDate))} – {toDateStr(new Date(challenge.endDate))}
-          </span>
-        )}
-        <span className={styles.tag}>{rows.length} participants</span>
-      </div>
-
       <header className={styles.header}>
         <h1>{challenge?.name ?? DEFAULT_CHALLENGE_NAME}</h1>
         {daysLeft !== null && <p className={styles.daysLeft}>{daysLeft} days left</p>}
