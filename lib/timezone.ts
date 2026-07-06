@@ -1,46 +1,25 @@
-/**
- * Determines which calendar date a wearable device recorded a reading in,
- * using the UTC offset embedded in the timestamp itself — NOT a stored
- * per-person timezone, and NOT a single timezone applied to everyone.
- * This is deliberate: it means someone traveling mid-challenge still gets
- * scored against wherever they actually were when the reading happened.
- *
- * Expects ISO 8601 timestamps. Two shapes are handled:
- *   "2026-07-01T22:15:00+05:30"  -> offset present, use it directly
- *   "2026-07-01T16:45:00Z"       -> bare UTC, no offset recoverable here
- *
- * IMPORTANT: before relying on this in production, confirm against the
- * live instance's Swagger docs (/docs) whether /summaries/activity,
- * /summaries/sleep, and /events/workouts actually return the offset on
- * the normalized response, or whether some providers collapse it to
- * bare UTC. If the latter, the offset may still be recoverable from the
- * raw payload (S3 raw payload storage) for that record — see the
- * `usedFallback` flag this function returns so callers can log/flag it
- * rather than silently mis-bucketing a day.
- */
-export function localDateFromDeviceTimestamp(isoTimestamp: string): {
-  date: string; // YYYY-MM-DD
-  usedFallback: boolean;
-} {
-  const offsetMatch = isoTimestamp.match(/([+-]\d{2}:\d{2})$/);
+export function localDateFromWorkout(
+  isoTimestamp: string,
+  zoneOffset: number | string | null | undefined
+): { date: string; usedFallback: boolean } {
+  let offsetMinutes: number | null = null;
 
-  if (!offsetMatch) {
-    // No offset embedded. Falling back to the bare UTC date. If precise
-    // local-day attribution matters for this provider, recover the
-    // original timestamp from the raw payload instead of trusting this.
+  if (typeof zoneOffset === "number") {
+    offsetMinutes = zoneOffset;
+  } else if (typeof zoneOffset === "string") {
+    const match = zoneOffset.match(/^([+-])(\d{2}):(\d{2})$/);
+    if (match) {
+      const sign = match[1] === "-" ? -1 : 1;
+      offsetMinutes = sign * (Number(match[2]) * 60 + Number(match[3]));
+    }
+  }
+
+  if (offsetMinutes === null) {
     return { date: isoTimestamp.slice(0, 10), usedFallback: true };
   }
 
-  const offset = offsetMatch[1];
-  const sign = offset.startsWith("-") ? -1 : 1;
-  const [ohStr, omStr] = offset.slice(1).split(":");
-  const offsetMinutes = sign * (Number(ohStr) * 60 + Number(omStr));
-
-  const utcMs = new Date(isoTimestamp).getTime();
-  const localMs = utcMs + offsetMinutes * 60_000;
-  const local = new Date(localMs);
-
-  return { date: local.toISOString().slice(0, 10), usedFallback: false };
+  const localMs = new Date(isoTimestamp).getTime() + offsetMinutes * 60_000;
+  return { date: new Date(localMs).toISOString().slice(0, 10), usedFallback: false };
 }
 
 export function isWithinRange(date: string, startDate: string, endDate: string): boolean {

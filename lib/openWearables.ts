@@ -1,14 +1,17 @@
 /**
  * Thin client for the Open Wearables REST API.
  *
- * NOTE: endpoint paths and response envelope shapes below are based on
- * publicly documented examples (X-Open-Wearables-API-Key header, paginated
- * { items, total, ... } and cursor { data, pagination, metadata } response
- * shapes, and /api/v1/summaries/... and /api/v1/events/... path patterns).
- * Confirm exact paths and field names against your running instance's
- * Swagger UI at {OPEN_WEARABLES_API_URL}/docs before relying on this in
- * production — some fields (e.g. exact activity/sleep field names) are
- * inferred from provider documentation, not the OpenAPI spec itself.
+ * Endpoint paths and parameters below were confirmed directly against a
+ * running instance's /openapi.json:
+ *   GET /api/v1/users/{user_id}/summaries/activity
+ *   GET /api/v1/users/{user_id}/summaries/sleep
+ *   GET /api/v1/users/{user_id}/events/workouts
+ * All three take user_id as a PATH parameter, plus query params:
+ * start_date, end_date, cursor, limit, sort_order.
+ * Auth header: X-Open-Wearables-API-Key
+ *
+ * Response envelope confirmed against real responses:
+ * { "data": [...], "pagination": { "next_cursor", "has_more", ... } }
  */
 
 const BASE_URL = process.env.OPEN_WEARABLES_API_URL ?? "http://localhost:8000";
@@ -17,8 +20,6 @@ const API_KEY = process.env.OPEN_WEARABLES_API_KEY ?? "";
 async function owFetch(path: string) {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { "X-Open-Wearables-API-Key": API_KEY },
-    // Reconciliation runs server-side on a schedule — no need for the
-    // Next.js data cache to hold onto responses between runs.
     cache: "no-store",
   });
   if (!res.ok) {
@@ -28,39 +29,49 @@ async function owFetch(path: string) {
 }
 
 function extractItems(payload: any): any[] {
-  // Handles either response envelope shape documented by Open Wearables.
   return payload.items ?? payload.data ?? [];
 }
 
+function extractNextCursor(payload: any): string | null {
+  return payload.pagination?.has_more ? payload.pagination.next_cursor ?? null : null;
+}
+
+async function fetchAllPages(basePath: string, params: URLSearchParams): Promise<any[]> {
+  const results: any[] = [];
+  let cursor: string | null = null;
+
+  do {
+    const query = new URLSearchParams(params);
+    if (cursor) query.set("cursor", cursor);
+    const payload = await owFetch(`${basePath}?${query.toString()}`);
+    results.push(...extractItems(payload));
+    cursor = extractNextCursor(payload);
+  } while (cursor);
+
+  return results;
+}
+
 export async function getActivitySummaries(userId: string, startDate: string, endDate: string) {
-  const payload = await owFetch(
-    `/api/v1/summaries/activity?user_id=${userId}&start_date=${startDate}&end_date=${endDate}`
+  return fetchAllPages(
+    `/api/v1/users/${userId}/summaries/activity`,
+    new URLSearchParams({ start_date: startDate, end_date: endDate })
   );
-  return extractItems(payload);
 }
 
 export async function getSleepSummaries(userId: string, startDate: string, endDate: string) {
-  const payload = await owFetch(
-    `/api/v1/summaries/sleep?user_id=${userId}&start_date=${startDate}&end_date=${endDate}`
+  return fetchAllPages(
+    `/api/v1/users/${userId}/summaries/sleep`,
+    new URLSearchParams({ start_date: startDate, end_date: endDate })
   );
-  return extractItems(payload);
 }
 
 export async function getWorkoutEvents(userId: string, startDate: string, endDate: string) {
-  const payload = await owFetch(
-    `/api/v1/events/workouts?user_id=${userId}&start_date=${startDate}&end_date=${endDate}`
+  return fetchAllPages(
+    `/api/v1/users/${userId}/events/workouts`,
+    new URLSearchParams({ start_date: startDate, end_date: endDate })
   );
-  return extractItems(payload);
 }
 
-/**
- * Revoke a participant's provider connection at the end of the challenge.
- * As of the docs reviewed, full API-driven deregistration is confirmed
- * for Garmin; other providers are being added progressively. Verify
- * current support for Fitbit/Whoop before relying on this for every
- * provider — for unsupported ones, disconnecting via the dashboard UI
- * may still be a manual step.
- */
 export async function disconnectProvider(userId: string, provider: string) {
   const res = await fetch(`${BASE_URL}/api/v1/users/${userId}/providers/${provider}`, {
     method: "DELETE",

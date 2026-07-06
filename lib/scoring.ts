@@ -1,6 +1,6 @@
 import { prisma } from "./db";
 import { RULES } from "./rules";
-import { localDateFromDeviceTimestamp, isWithinRange } from "./timezone";
+import { localDateFromWorkout, isWithinRange } from "./timezone";
 
 async function upsertPoint(
   participantId: string,
@@ -26,68 +26,37 @@ async function upsertPoint(
   });
 }
 
-/**
- * Scores a single daily activity summary against the steps rule.
- * `summary` shape assumed: { date | recorded_at: string (ISO), steps: number, ... }
- * Confirm exact field names against the live API response.
- */
 export async function scoreActivitySummary(
   participantId: string,
   summary: any,
   challengeStart: string,
   challengeEnd: string
 ) {
-  const timestamp = summary.date ?? summary.recorded_at;
-  if (!timestamp) return;
+  const date = summary.date;
+  if (!date || !isWithinRange(date, challengeStart, challengeEnd)) return;
 
-  const { date, usedFallback } = localDateFromDeviceTimestamp(timestamp);
-  if (usedFallback) {
-    console.warn(
-      `[scoring] activity summary for participant ${participantId} had no UTC offset — used bare UTC date ${date}. Consider checking the raw payload.`
-    );
-  }
-  if (!isWithinRange(date, challengeStart, challengeEnd)) return;
-
-  const steps = summary.steps ?? summary.step_count ?? 0;
+  const steps = summary.steps ?? 0;
   if (steps >= RULES.steps.thresholdPerDay) {
     await upsertPoint(participantId, "steps", date, RULES.steps.points);
   }
 }
 
-/**
- * Scores a single sleep summary against the sleep-duration rule.
- * `summary` shape assumed: { date | start_time: string (ISO), duration_seconds: number, ... }
- */
 export async function scoreSleepSummary(
   participantId: string,
   summary: any,
   challengeStart: string,
   challengeEnd: string
 ) {
-  const timestamp = summary.date ?? summary.start_time ?? summary.recorded_at;
-  if (!timestamp) return;
+  const date = summary.date;
+  if (!date || !isWithinRange(date, challengeStart, challengeEnd)) return;
 
-  const { date, usedFallback } = localDateFromDeviceTimestamp(timestamp);
-  if (usedFallback) {
-    console.warn(
-      `[scoring] sleep summary for participant ${participantId} had no UTC offset — used bare UTC date ${date}. Consider checking the raw payload.`
-    );
-  }
-  if (!isWithinRange(date, challengeStart, challengeEnd)) return;
-
-  const durationSeconds = summary.duration_seconds ?? summary.total_sleep_seconds ?? 0;
-  const hours = durationSeconds / 3600;
+  const durationMinutes = summary.duration_minutes ?? 0;
+  const hours = durationMinutes / 60;
   if (hours > RULES.sleep.minHours) {
     await upsertPoint(participantId, "sleep", date, RULES.sleep.points);
   }
 }
 
-/**
- * Scores a batch of workout events against the daily workout-minutes rule.
- * Minutes are summed per local day BEFORE comparing to the threshold, so
- * multiple short workouts on the same day stack toward the 30-minute bar.
- * `event` shape assumed: { start_time: string (ISO), duration_seconds: number, ... }
- */
 export async function scoreWorkoutEvents(
   participantId: string,
   events: any[],
@@ -97,13 +66,13 @@ export async function scoreWorkoutEvents(
   const minutesByDate: Record<string, number> = {};
 
   for (const ev of events) {
-    const timestamp = ev.start_time ?? ev.recorded_at;
+    const timestamp = ev.start_time;
     if (!timestamp) continue;
 
-    const { date, usedFallback } = localDateFromDeviceTimestamp(timestamp);
+    const { date, usedFallback } = localDateFromWorkout(timestamp, ev.zone_offset);
     if (usedFallback) {
       console.warn(
-        `[scoring] workout event for participant ${participantId} had no UTC offset — used bare UTC date ${date}.`
+        `[scoring] workout ${ev.id ?? "(no id)"} for participant ${participantId} had no zone_offset -- used bare UTC date ${date}.`
       );
     }
     if (!isWithinRange(date, challengeStart, challengeEnd)) continue;
