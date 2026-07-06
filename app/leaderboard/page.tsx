@@ -1,70 +1,19 @@
-import { prisma } from "@/lib/db";
 import styles from "./leaderboard.module.css";
 import ScoreGauge from "@/components/ScoreGauge";
 import MetricsBarChart from "@/components/MetricsBarChart";
+import TrendLineChart from "@/components/TrendLineChart";
+import StreakBadge from "@/components/StreakBadge";
+import Nav from "@/components/Nav";
+import { getChallengeData, buildCumulativeSeries } from "@/lib/challengeData";
 
 export const dynamic = "force-dynamic";
 
 const DEFAULT_CHALLENGE_NAME = "LGMF Spain-Fit Challenge";
 const GAUGE_ACCENTS = ["--amber", "--teal", "--sage", "--amber-dark", "--teal-dark", "--sage-dark"];
 
-function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function buildDayList(start: string, end: string): string[] {
-  const days: string[] = [];
-  const cur = new Date(`${start}T00:00:00Z`);
-  const last = new Date(`${end}T00:00:00Z`);
-  while (cur <= last) {
-    days.push(toDateStr(cur));
-    cur.setUTCDate(cur.getUTCDate() + 1);
-  }
-  return days;
-}
-
-async function getLeaderboardData() {
-  const participants = await prisma.participant.findMany({
-    include: { pointEvents: true, challenge: true },
-  });
-
-  const rows = participants
-    .map((p) => {
-      const totals = { steps: 0, sleep: 0, workout: 0 };
-      const metByDate: Record<string, { steps: boolean; sleep: boolean; workout: boolean }> = {};
-
-      for (const e of p.pointEvents) {
-        if (e.activityType in totals) {
-          totals[e.activityType as keyof typeof totals] += e.points;
-        }
-        const dateKey = toDateStr(new Date(e.occurredDate));
-        if (!metByDate[dateKey]) metByDate[dateKey] = { steps: false, sleep: false, workout: false };
-        if (e.activityType === "steps") metByDate[dateKey].steps = true;
-        if (e.activityType === "sleep") metByDate[dateKey].sleep = true;
-        if (e.activityType === "workout") metByDate[dateKey].workout = true;
-      }
-
-      const total = totals.steps + totals.sleep + totals.workout;
-      return { id: p.id, name: p.displayName, total, totals, metByDate, challenge: p.challenge };
-    })
-    .sort((a, b) => b.total - a.total);
-
-  return rows;
-}
-
 export default async function LeaderboardPage() {
-  const rows = await getLeaderboardData();
-  const challenge = rows[0]?.challenge;
-  const daysLeft = challenge
-    ? Math.max(0, Math.ceil((new Date(challenge.endDate).getTime() - Date.now()) / 86_400_000))
-    : null;
-
-  const today = toDateStr(new Date());
-  const challengeStart = challenge ? toDateStr(new Date(challenge.startDate)) : today;
-  const challengeEndRaw = challenge ? toDateStr(new Date(challenge.endDate)) : today;
-  const gridEnd = challengeEndRaw < today ? challengeEndRaw : today;
-  const days = challenge ? buildDayList(challengeStart, gridEnd) : [];
-  const maxPossiblePoints = days.length * 3;
+  const data = await getChallengeData();
+  const { participants: rows, days, maxPossiblePoints, daysLeft, challengeName } = data;
 
   const chartData = rows.map((r) => ({
     name: r.name,
@@ -73,10 +22,15 @@ export default async function LeaderboardPage() {
     Workout: r.totals.workout,
   }));
 
+  const trendData = buildCumulativeSeries(days, rows);
+  const trendSeriesNames = rows.map((r) => r.name);
+
   return (
     <main className={styles.page}>
+      <Nav active="leaderboard" />
+
       <header className={styles.header}>
-        <h1>{challenge?.name ?? DEFAULT_CHALLENGE_NAME}</h1>
+        <h1>{challengeName ?? DEFAULT_CHALLENGE_NAME}</h1>
         {daysLeft !== null && <p className={styles.daysLeft}>{daysLeft} days left</p>}
       </header>
 
@@ -88,13 +42,15 @@ export default async function LeaderboardPage() {
             <p className={styles.eyebrow}>Progress</p>
             <div className={styles.gaugeRow}>
               {rows.map((r, i) => (
-                <ScoreGauge
-                  key={r.id}
-                  label={r.name}
-                  value={r.total}
-                  max={maxPossiblePoints}
-                  accent={GAUGE_ACCENTS[i % GAUGE_ACCENTS.length]}
-                />
+                <div key={r.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                  <ScoreGauge
+                    label={r.name}
+                    value={r.total}
+                    max={maxPossiblePoints}
+                    accent={GAUGE_ACCENTS[i % GAUGE_ACCENTS.length]}
+                  />
+                  <StreakBadge current={r.currentStreak} best={r.bestStreak} />
+                </div>
               ))}
             </div>
           </section>
@@ -123,7 +79,14 @@ export default async function LeaderboardPage() {
           </div>
 
           <section className={styles.chartSection}>
-            <p className={styles.eyebrow}>Compare</p>
+            <p className={styles.eyebrow}>Trend</p>
+            <div className={styles.chartCard}>
+              <TrendLineChart data={trendData} seriesNames={trendSeriesNames} />
+            </div>
+          </section>
+
+          <section className={styles.chartSection}>
+            <p className={styles.eyebrow}>Compare totals</p>
             <div className={styles.chartCard}>
               <MetricsBarChart data={chartData} />
             </div>
