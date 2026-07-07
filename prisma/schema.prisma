@@ -27,9 +27,22 @@ model Participant {
   // the wearable device itself recorded, not a per-person setting.
   openWearablesUserId String       @map("open_wearables_user_id")
   displayName         String       @map("display_name")
+  // Optional: forces scoring to use only this exact source.provider value
+  // (e.g. "Connect", "Whoop", "Apple Watch") instead of trusting whichever
+  // source Open Wearables' own summary endpoints resolve to. Needed when a
+  // participant has multiple overlapping sources (e.g. a phone + a watchuser_idand you want to guarantee scoring only counts one specific device.
+  preferredProvider   String?      @map("preferred_provider")
+  // Only used when preferredProvider is set: raw /timeseries records have
+  // no zone_offset, so bucketing steps into calendar days requires an
+  // explicit offset for this participant. Fixed for the duration of a
+  // single challenge -- not DST-safe across a full year, but fine for a
+  // ~30-60 day window. E.g. IST = 330, US Eastern (summer) = -240, US
+  // Pacific (summer) = -420.
+  timezoneOffsetMinutes Int?       @map("timezone_offset_minutes")
   createdAt           DateTime     @default(now()) @map("created_at")
   pointEvents         PointEvent[]
   bodyMetrics         BodyMetric[]
+  rawDailyMetrics     RawDailyMetric[]
 
   @@unique([challengeId, openWearablesUserId])
   @@map("participants")
@@ -43,7 +56,7 @@ model PointEvent {
   activityType  String      @map("activity_type")
   points        Int
   // The calendar date as reported by the device/provider for this
-  // reading — device-local, not UTC and not a fixed per-person timezone.
+  // reading — device-local, not UTCdand not a fixed per-person timezone.
   occurredDate  DateTime    @map("occurred_date") @db.Date
   createdAt     DateTime    @default(now()) @map("created_at")
 
@@ -51,6 +64,27 @@ model PointEvent {
   // webhook path and the reconciliation cron idempotent — safe to re-run.
   @@unique([participantId, activityType, occurredDate])
   @@map("point_events")
+}
+
+// Persisted raw daily values (as opposed to point_events, which only
+// stores pass/fail points). Populated during the same reconciliation
+// pass that computes scoring, using the same source-filtered data when
+// a participant has preferredProvider set. Purely informational -- not
+// used for scoring itself, just for the /raw page and any future audit
+// needs.
+model RawDailyMetric {
+  id                     String      @id @default(cuid())
+  participantId          String      @map("participant_id")
+  participant            Participant @relation(fields: [participantId], references: [id])
+  date                   DateTime    @db.Date
+  steps                  Int?
+  sleepHours             Float?      @map("sleep_hours")
+  workoutCount           Int?        @map("workout_count")
+  workoutDurationMinutes Float?      @map("workout_duration_minutes")
+  updatedAt              DateTime    @updatedAt @map("updated_at")
+
+  @@unique([participantId, date])
+  @@map("raw_daily_metrics")
 }
 
 model BodyMetric {

@@ -1,30 +1,30 @@
 /**
- * Reconciliation job — run on a schedule (Railway cron) as a safety net
- * alongside the webhook receiver.
- *
- * Design notes:
- * - Always re-pulls from the challenge's start_date to end_date, not
- *   "since last run." This ensures late joiners get fully backfilled
- *   rather than only scored from whenever they connected.
- * - No per-participant timezone handling needed here: each summary/event
- *   carries its own local date (via lib/timezone.ts), so this job can run
- *   at any time of day for any participant without worrying about whose
- *   "midnight" it is.
- * - Scoring is idempotent (unique constraint on participant+activity+date),
- *   so re-processing the full challenge window on every run is safe and
- *   cheap for a small friend group. At larger scale, narrow the pulled
- *   range to a rolling lookback (e.g. last 3-4 days) instead.
+ * Reconciliation job -- run on a schedule (Railway cron) as a safety net
+ * alongside the webhook receiver. Also persists raw daily values (steps,
+ * sleep hours, workout count/duration) to raw_daily_metrics for the /raw
+ * page, using the same source-filtered data as scoring so the numbers
+ * shown there match what's actually being scored.
  */
 import { prisma } from "../lib/db";
 import { getActivitySummaries, getSleepSummaries, getWorkoutEvents } from "../lib/openWearables";
-import { scoreActivitySummary, scoreSleepSummary, scoreWorkoutEvents } from "../lib/scoring";
+import {
+  scoreActivitySummary,
+  scoreSleepSummary,
+  scoreWorkoutEvents,
+  scoreStepsForProvider,
+} from "../lib/scoring";
+import {
+  recordActivityRaw,
+  recordSleepRaw,
+  recordWorkoutsRaw,
+  recordStepsRawForProvider,
+} from "../lib/rawMetrics";
 import { addDaysToDateString } from "../lib/timezone";
 
-const GRACE_PERIOD_DAYS = 3; // keep reconciling briefly after end_date in case of late-arriving data
+const GRACE_PERIOD_DAYS = 3;
 
 async function main() {
   const today = new Date().toISOString().slice(0, 10);
-
   const challenges = await prisma.challenge.findMany({ include: { participants: true } });
 
   for (const challenge of challenges) {
@@ -48,32 +48,45 @@ async function main() {
           getWorkoutEvents(participant.openWearablesUserId, start, end),
         ]);
 
-        for (const summary of activitySummaries) {
-          await scoreActivitySummary(participant.id, summary, start, end);
-        }
+        // Sleep and workouts: score + record raw, both respecting
+        // preferredProvider (each record carries its own source already).
         for (const summary of sleepSummaries) {
-          await scoreSleepSummary(participant.id, summary, start, end);
+          await scoreSleepSummary(participant.id, summary, start, end, participant.preferredProvider);
+          await recordSleepRaw(participant.id, summary, start, end, participant.preferredProvider);
         }
-        await scoreWorkoutEvents(participant.id, workoutEvents, start, end);
+        await scoreWorkoutEvents(participant.id, workoutEvents, start, end, participant.preferredProvider);
+        await recordWorkoutsRaw(participant.id, workoutEvents, start, end, participant.preferredProvider);
+
+        // Steps: two paths depending on whether this participant needs
+        // source isolation.
+        if (participant.preferredProvider && participant.timezoneOffsetMinutes != null) {
+          await scoreStepsForProvider(
+            participant.id,
+            participant.openWearablesUserId,
+            participant.preferredProvider,
+            participant.timezoneOffsetMinutes,
+            start,
+            end
+          );
+          await recordStepsRawForProvider(
+            participant.id,
+            participant.openWearablesUserId,
+            participant.preferredProvider,
+            participant.timezoneOffsetMinutes,
+            start,
+            end
+          );
+        } else {
+          for (const summary of activitySummaries) {
+            await scoreActivitySummary(participant.id, summary, start, end);
+            await recordActivityRaw(participant.id, summary, start, end);
+          }
+        }
 
         console.log(`[reconcile] scored participant ${participant.displayName}`);
       } catch (err) {
-        // One participant failing shouldn't stop the rest of the group
-        // from being reconciled.
         console.error(`[reconcile] failed for participant ${participant.displayName}`, err);
       }
-    }
-  }
-
-  // Auto-revoke provider connections for challenges that have just ended.
-  for (const challenge of challenges) {
-    const end = challenge.endDate.toISOString().slice(0, 10);
-    if (today === end) {
-      console.log(`[reconcile] "${challenge.name}" ends today — consider revoking provider connections.`);
-      // Disconnect calls are deliberately not automated here yet — provider
-      // support for API-driven disconnect varies (confirmed for Garmin,
-      // others progressively added). Verify current support before wiring
-      // this up to run automatically. See lib/openWearables.ts:disconnectProvider
     }
   }
 }

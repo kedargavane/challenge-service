@@ -44,14 +44,20 @@ export async function POST(req: NextRequest) {
     switch (eventType) {
       case "activity.summary.updated":
       case "activity.summary.created":
-        await scoreActivitySummary(participant.id, data, start, end);
+        // Participants with a preferredProvider get steps scored via the
+        // raw-timeseries path on the reconciliation cron instead --
+        // that path needs a full day window pull, not a single webhook
+        // payload, so we skip it here and let the cron catch it.
+        if (!participant.preferredProvider) {
+          await scoreActivitySummary(participant.id, data, start, end);
+        }
         break;
       case "sleep.session.created":
       case "sleep.summary.created":
-        await scoreSleepSummary(participant.id, data, start, end);
+        await scoreSleepSummary(participant.id, data, start, end, participant.preferredProvider);
         break;
       case "workout.created":
-        await scoreWorkoutEvents(participant.id, [data], start, end);
+        await scoreWorkoutEvents(participant.id, [data], start, end, participant.preferredProvider);
         break;
       default:
         // Unrecognized event type — log for visibility but don't fail
