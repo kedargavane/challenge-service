@@ -4,6 +4,7 @@ import MetricsBarChart from "@/components/MetricsBarChart";
 import TrendLineChart from "@/components/TrendLineChart";
 import StreakBadge from "@/components/StreakBadge";
 import Nav from "@/components/Nav";
+import ReconcileButton from "@/components/ReconcileButton";
 import { getChallengeData, buildCumulativeSeries } from "@/lib/challengeData";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,10 @@ export default async function LeaderboardPage() {
 
       <header className={styles.header}>
         <h1>{challengeName ?? DEFAULT_CHALLENGE_NAME}</h1>
-        {daysLeft !== null && <p className={styles.daysLeft}>{daysLeft} days left</p>}
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {daysLeft !== null && <p className={styles.daysLeft}>{daysLeft} days left</p>}
+          <ReconcileButton />
+        </div>
       </header>
 
       {rows.length === 0 ? (

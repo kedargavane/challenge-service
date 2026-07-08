@@ -1,93 +1,21 @@
 /**
- * Reconciliation job -- run on a schedule (Railway cron) as a safety net
- * alongside the webhook receiver. Also persists raw daily values (steps,
- * sleep hours, workout count/duration) to raw_daily_metrics for the /raw
- * page, using the same source-filtered data as scoring so the numbers
- * shown there match what's actually being scored.
+ * Cron entry point -- thin wrapper around the shared reconciliation
+ * engine (lib/reconcileEngine.ts), which is also used by the manual
+ * "Reconcile now" button (app/api/reconcile/route.ts).
  */
-import { prisma } from "../lib/db";
-import { getActivitySummaries, getSleepSummaries, getWorkoutEvents } from "../lib/openWearables";
-import {
-  scoreActivitySummary,
-  scoreSleepSummary,
-  scoreWorkoutEvents,
-  scoreStepsForProvider,
-} from "../lib/scoring";
-import {
-  recordActivityRaw,
-  recordSleepRaw,
-  recordWorkoutsRaw,
-  recordStepsRawForProvider,
-} from "../lib/rawMetrics";
-import { addDaysToDateString } from "../lib/timezone";
-
-const GRACE_PERIOD_DAYS = 3;
+import { runReconciliation } from "../lib/reconcileEngine";
 
 async function main() {
-  const today = new Date().toISOString().slice(0, 10);
-  const challenges = await prisma.challenge.findMany({ include: { participants: true } });
+  const result = await runReconciliation();
 
-  for (const challenge of challenges) {
-    const start = challenge.startDate.toISOString().slice(0, 10);
-    const end = challenge.endDate.toISOString().slice(0, 10);
-
-    if (today < start) {
-      console.log(`[reconcile] "${challenge.name}" hasn't started yet, skipping.`);
-      continue;
-    }
-    if (today > addDaysToDateString(end, GRACE_PERIOD_DAYS)) {
-      console.log(`[reconcile] "${challenge.name}" is over, skipping.`);
-      continue;
-    }
-
-    for (const participant of challenge.participants) {
-      try {
-        const [activitySummaries, sleepSummaries, workoutEvents] = await Promise.all([
-          getActivitySummaries(participant.openWearablesUserId, start, end),
-          getSleepSummaries(participant.openWearablesUserId, start, end),
-          getWorkoutEvents(participant.openWearablesUserId, start, end),
-        ]);
-
-        // Sleep and workouts: score + record raw, both respecting
-        // preferredProvider (each record carries its own source already).
-        for (const summary of sleepSummaries) {
-          await scoreSleepSummary(participant.id, summary, start, end, participant.preferredProvider);
-          await recordSleepRaw(participant.id, summary, start, end, participant.preferredProvider);
-        }
-        await scoreWorkoutEvents(participant.id, workoutEvents, start, end, participant.preferredProvider);
-        await recordWorkoutsRaw(participant.id, workoutEvents, start, end, participant.preferredProvider);
-
-        // Steps: two paths depending on whether this participant needs
-        // source isolation.
-        if (participant.preferredProvider && participant.timezoneOffsetMinutes != null) {
-          await scoreStepsForProvider(
-            participant.id,
-            participant.openWearablesUserId,
-            participant.preferredProvider,
-            participant.timezoneOffsetMinutes,
-            start,
-            end
-          );
-          await recordStepsRawForProvider(
-            participant.id,
-            participant.openWearablesUserId,
-            participant.preferredProvider,
-            participant.timezoneOffsetMinutes,
-            start,
-            end
-          );
-        } else {
-          for (const summary of activitySummaries) {
-            await scoreActivitySummary(participant.id, summary, start, end);
-            await recordActivityRaw(participant.id, summary, start, end);
-          }
-        }
-
-        console.log(`[reconcile] scored participant ${participant.displayName}`);
-      } catch (err) {
-        console.error(`[reconcile] failed for participant ${participant.displayName}`, err);
-      }
-    }
+  for (const name of result.scored) {
+    console.log(`[reconcile] scored participant ${name}`);
+  }
+  for (const { name, error } of result.errors) {
+    console.error(`[reconcile] failed for participant ${name}`, error);
+  }
+  for (const note of result.skipped) {
+    console.log(`[reconcile] ${note}, skipping.`);
   }
 }
 
