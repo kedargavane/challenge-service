@@ -1,15 +1,7 @@
-/**
- * Extracts health metrics from uploaded screenshots (Apple Health, Garmin
- * Connect, Whoop, etc.) using Claude's vision capability. Requires
- * ANTHROPIC_API_KEY set as an env var on this service -- get one from
- * console.anthropic.com. This is a real production API call, separate
- * from anything in the chat environment.
- */
-
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 
 export type ExtractedRow = {
-  date: string; // YYYY-MM-DD
+  date: string;
   steps?: number | null;
   sleepHours?: number | null;
   workoutCount?: number | null;
@@ -28,6 +20,8 @@ export async function extractMetricsFromScreenshots(
       type: "text",
       text: `These are screenshots from health/fitness tracking apps (Apple Health, Garmin Connect, Whoop, or similar). Extract every date visible and its associated metric value.
 
+IMPORTANT CONTEXT: Every screenshot you are given is for a fitness challenge that runs July 1 - August 20, 2026. Every single date you extract MUST be in the year 2026, with no exceptions -- even if a date shown appears to lack a year, or if a year shown looks like it could be 2025 or any other year, output 2026. Do not use your own assumptions about "the current year" -- the correct year for every row is always 2026.
+
 CRITICAL: Your entire response must be nothing but the JSON array itself. Do not include any explanation, preamble, commentary, or markdown code fences before or after it -- not even a single sentence. Start your response directly with [ and end it with ].
 
 Each element:
@@ -38,7 +32,6 @@ Rules:
 - Only include fields you can actually read from that image -- use null for anything not shown.
 - If the same date appears across multiple screenshots with different metric types, merge them into one row per date in your final output.
 - Convert sleep duration to decimal hours (e.g. "8h 12m" -> 8.2).
-- Dates may appear in different formats (e.g. "6 Jul 2026", "07/06/2026") -- always output as YYYY-MM-DD. If no year is visible, infer the most likely year from context; do not guess wildly.
 - If a number is genuinely illegible, omit that field rather than guessing.`,
     },
   ];
@@ -72,10 +65,6 @@ Rules:
   const textBlock = data.content.find((b: any) => b.type === "text");
   if (!textBlock) throw new Error("No text response from vision extraction");
 
-  // Claude sometimes adds a sentence or two before/after the JSON despite
-  // instructions to return only JSON. Extract the array substring
-  // directly (first '[' to matching last ']') instead of assuming the
-  // whole response is clean JSON.
   const text = textBlock.text;
   const start = text.indexOf("[");
   const end = text.lastIndexOf("]");
