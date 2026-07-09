@@ -9,6 +9,20 @@ async function upsertPoint(
   occurredDate: string,
   points: number
 ) {
+  // Never let automated scoring overwrite a manually-confirmed screenshot
+  // entry -- those are treated as ground truth once a human has verified
+  // them (see app/api/manual-entries/confirm/route.ts).
+  const existing = await prisma.pointEvent.findUnique({
+    where: {
+      participantId_activityType_occurredDate: {
+        participantId,
+        activityType,
+        occurredDate: new Date(occurredDate),
+      },
+    },
+  });
+  if (existing?.source === "manual") return;
+
   await prisma.pointEvent.upsert({
     where: {
       participantId_activityType_occurredDate: {
@@ -17,12 +31,13 @@ async function upsertPoint(
         occurredDate: new Date(occurredDate),
       },
     },
-    update: { points },
+    update: { points, source: "api" },
     create: {
       participantId,
       activityType,
       occurredDate: new Date(occurredDate),
       points,
+      source: "api",
     },
   });
 }

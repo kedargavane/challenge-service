@@ -7,10 +7,17 @@ async function upsertRaw(
   date: string,
   data: { steps?: number; sleepHours?: number; workoutCount?: number; workoutDurationMinutes?: number }
 ) {
+  // Never let automated sync overwrite a manually-confirmed screenshot
+  // entry for this date -- see app/api/manual-entries/confirm/route.ts.
+  const existing = await prisma.rawDailyMetric.findUnique({
+    where: { participantId_date: { participantId, date: new Date(date) } },
+  });
+  if (existing?.source === "manual") return;
+
   await prisma.rawDailyMetric.upsert({
     where: { participantId_date: { participantId, date: new Date(date) } },
-    update: data,
-    create: { participantId, date: new Date(date), ...data },
+    update: { ...data, source: "api" },
+    create: { participantId, date: new Date(date), ...data, source: "api" },
   });
 }
 

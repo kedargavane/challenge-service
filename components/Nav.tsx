@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function Nav({ active }: { active: "leaderboard" | "compare" | "raw" }) {
+export default function Nav({ active }: { active: "leaderboard" | "compare" | "raw" | "upload" }) {
   const linkStyle = (isActive: boolean): React.CSSProperties => ({
     fontSize: 13,
     fontWeight: 600,
@@ -22,6 +22,9 @@ export default function Nav({ active }: { active: "leaderboard" | "compare" | "r
       </Link>
       <Link href="/raw" style={linkStyle(active === "raw")}>
         Raw
+      </Link>
+      <Link href="/upload" style={linkStyle(active === "upload")}>
+        Upload
       </Link>
     </nav>
   );

@@ -1,0 +1,112 @@
+.userGrid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.userCard {
+  padding: 16px 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.userCard:hover {
+  border-color: var(--amber);
+}
+
+.backLink {
+  font-size: 13px;
+  color: var(--ink-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 16px;
+  text-decoration: underline;
+}
+
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  background: var(--card);
+  margin-bottom: 20px;
+}
+
+.dropzone input {
+  display: block;
+  margin: 12px auto 0;
+}
+
+.fileList {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-bottom: 20px;
+}
+
+.primaryButton {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--sage);
+  color: white;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  background: var(--border);
+  cursor: default;
+}
+
+.reviewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.reviewTable th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reviewTable td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reviewTable input {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.statusMsg {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-top: 12px;
+}
+
+.errorMsg {
+  font-size: 13px;
+  color: #b8632a;
+  margin-top: 12px;
+}
