@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { extractMetricsFromScreenshots } from "@/lib/anthropicVision";
 
-// Step 2-3 of the manual upload flow: takes uploaded screenshots, runs
-// vision extraction, stages the results as status="pending" rows, and
-// permanently logs the upload (with the actual images) so anyone can
-// revisit what was uploaded and when -- see UploadLog/UploadedImage.
-// Does NOT touch point_events or raw_daily_metrics yet -- that only
-// happens after a human reviews and confirms (see /confirm).
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const participantId = formData.get("participantId") as string | null;
@@ -46,6 +40,7 @@ export async function POST(req: NextRequest) {
           sleepHours: row.sleepHours ?? null,
           workoutCount: row.workoutCount ?? null,
           workoutDurationMinutes: row.workoutDurationMinutes ?? null,
+          weightKg: row.weightKg ?? null,
           status: "pending",
         },
         create: {
@@ -55,6 +50,7 @@ export async function POST(req: NextRequest) {
           sleepHours: row.sleepHours ?? null,
           workoutCount: row.workoutCount ?? null,
           workoutDurationMinutes: row.workoutDurationMinutes ?? null,
+          weightKg: row.weightKg ?? null,
           status: "pending",
         },
       });

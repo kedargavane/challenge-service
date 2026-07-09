@@ -108,6 +108,7 @@ model ManualMetricEntry {
   sleepHours             Float?      @map("sleep_hours")
   workoutCount           Int?        @map("workout_count")
   workoutDurationMinutes Float?      @map("workout_duration_minutes")
+  weightKg               Float?      @map("weight_kg")
   status                 String      @default("pending")
   createdAt              DateTime    @default(now()) @map("created_at")
   confirmedAt            DateTime?   @map("confirmed_at")

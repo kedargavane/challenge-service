@@ -13,6 +13,7 @@ type PendingEntry = {
   sleepHours: number | null;
   workoutCount: number | null;
   workoutDurationMinutes: number | null;
+  weightKg: number | null;
 };
 
 export default function ManualEntryUploader({ participants }: { participants: Participant[] }) {
@@ -63,6 +64,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
           sleepHours: e.sleepHours,
           workoutCount: e.workoutCount,
           workoutDurationMinutes: e.workoutDurationMinutes,
+          weightKg: e.weightKg,
         }))
       );
       setStep("review");
@@ -128,7 +130,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
           Uploading for <strong>{selected?.displayName}</strong>
         </p>
         <div className={styles.dropzone}>
-          <p>Upload screenshots (steps, sleep, or workout screens — any mix, multiple at once)</p>
+          <p>Upload screenshots (steps, sleep, workout, or weight/scale screens — any mix, multiple at once)</p>
           <input
             type="file"
             accept="image/*"
@@ -158,7 +160,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
       </button>
       <p style={{ marginBottom: 12 }}>
         Review extracted data for <strong>{selected?.displayName}</strong> — edit anything that looks
-        wrong before saving.
+        wrong before saving. Weight is never scored — it's just saved for comparison.
       </p>
       <table className={styles.reviewTable}>
         <thead>
@@ -168,6 +170,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
             <th>Sleep (hrs)</th>
             <th>Workouts</th>
             <th>Workout mins</th>
+            <th>Weight (kg)</th>
           </tr>
         </thead>
         <tbody>
@@ -202,6 +205,14 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
                   step="0.1"
                   value={e.workoutDurationMinutes ?? ""}
                   onChange={(ev) => updateEntry(e.id, "workoutDurationMinutes", ev.target.value)}
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={e.weightKg ?? ""}
+                  onChange={(ev) => updateEntry(e.id, "weightKg", ev.target.value)}
                 />
               </td>
             </tr>

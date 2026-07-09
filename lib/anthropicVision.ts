@@ -1,11 +1,12 @@
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 
 export type ExtractedRow = {
-  date: string;
+  date: string; // YYYY-MM-DD
   steps?: number | null;
   sleepHours?: number | null;
   workoutCount?: number | null;
   workoutDurationMinutes?: number | null;
+  weightKg?: number | null;
 };
 
 export async function extractMetricsFromScreenshots(
@@ -25,10 +26,11 @@ IMPORTANT CONTEXT: Every screenshot you are given is for a fitness challenge tha
 CRITICAL: Your entire response must be nothing but the JSON array itself. Do not include any explanation, preamble, commentary, or markdown code fences before or after it -- not even a single sentence. Start your response directly with [ and end it with ].
 
 Each element:
-{"date": "YYYY-MM-DD", "steps": number or null, "sleepHours": number or null, "workoutCount": number or null, "workoutDurationMinutes": number or null}
+{"date": "YYYY-MM-DD", "steps": number or null, "sleepHours": number or null, "workoutCount": number or null, "workoutDurationMinutes": number or null, "weightKg": number or null}
 
 Rules:
-- Infer the metric type from context: a list titled "Steps" means steps; a sleep duration screen means sleepHours; a workout/exercise screen means workoutDurationMinutes (and workoutCount = number of sessions shown).
+- Infer the metric type from context: a list titled "Steps" means steps; a sleep duration screen means sleepHours; a workout/exercise screen means workoutDurationMinutes (and workoutCount = number of sessions shown); a scale/body-weight screen means weightKg.
+- Convert weight to kilograms if shown in pounds (e.g. "165 lb" -> 74.8).
 - Only include fields you can actually read from that image -- use null for anything not shown.
 - If the same date appears across multiple screenshots with different metric types, merge them into one row per date in your final output.
 - Convert sleep duration to decimal hours (e.g. "8h 12m" -> 8.2).

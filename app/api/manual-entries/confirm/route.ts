@@ -2,16 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { RULES } from "@/lib/rules";
 
-// Step 4 of the manual upload flow: takes the human-edited/confirmed
-// rows, applies the same scoring thresholds used everywhere else, and
-// writes into point_events + raw_daily_metrics with source="manual" so
-// automated reconciliation never overwrites them (see lib/scoring.ts
-// and lib/rawMetrics.ts upsert functions).
-//
-// Raw values are always saved regardless of date -- people can upload
-// screenshots from before the challenge started just to have the data
-// on record -- but points are only ever awarded for dates that actually
-// fall within the participant's challenge window.
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const entries: Array<{
@@ -20,6 +10,7 @@ export async function POST(req: NextRequest) {
     sleepHours?: number | null;
     workoutCount?: number | null;
     workoutDurationMinutes?: number | null;
+    weightKg?: number | null;
   }> = body.entries ?? [];
 
   let count = 0;
@@ -39,10 +30,19 @@ export async function POST(req: NextRequest) {
         sleepHours: e.sleepHours ?? null,
         workoutCount: e.workoutCount ?? null,
         workoutDurationMinutes: e.workoutDurationMinutes ?? null,
+        weightKg: e.weightKg ?? null,
         status: "confirmed",
         confirmedAt: new Date(),
       },
     });
+
+    if (updated.weightKg != null) {
+      await prisma.bodyMetric.upsert({
+        where: { participantId_date: { participantId: updated.participantId, date: updated.date } },
+        update: { weightKg: updated.weightKg },
+        create: { participantId: updated.participantId, date: updated.date, weightKg: updated.weightKg },
+      });
+    }
 
     await prisma.rawDailyMetric.upsert({
       where: { participantId_date: { participantId: updated.participantId, date: updated.date } },
