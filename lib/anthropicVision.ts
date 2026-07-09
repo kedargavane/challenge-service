@@ -28,7 +28,9 @@ export async function extractMetricsFromScreenshots(
       type: "text",
       text: `These are screenshots from health/fitness tracking apps (Apple Health, Garmin Connect, Whoop, or similar). Extract every date visible and its associated metric value.
 
-Return ONLY a JSON array, no other text, no markdown code fences. Each element:
+CRITICAL: Your entire response must be nothing but the JSON array itself. Do not include any explanation, preamble, commentary, or markdown code fences before or after it -- not even a single sentence. Start your response directly with [ and end it with ].
+
+Each element:
 {"date": "YYYY-MM-DD", "steps": number or null, "sleepHours": number or null, "workoutCount": number or null, "workoutDurationMinutes": number or null}
 
 Rules:
@@ -70,8 +72,24 @@ Rules:
   const textBlock = data.content.find((b: any) => b.type === "text");
   if (!textBlock) throw new Error("No text response from vision extraction");
 
-  const cleaned = textBlock.text.replace(/```json|```/g, "").trim();
-  const parsed = JSON.parse(cleaned);
+  // Claude sometimes adds a sentence or two before/after the JSON despite
+  // instructions to return only JSON. Extract the array substring
+  // directly (first '[' to matching last ']') instead of assuming the
+  // whole response is clean JSON.
+  const text = textBlock.text;
+  const start = text.indexOf("[");
+  const end = text.lastIndexOf("]");
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error(`Could not find a JSON array in the model's response: ${text.slice(0, 200)}`);
+  }
+  const jsonSlice = text.slice(start, end + 1);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonSlice);
+  } catch (err) {
+    throw new Error(`Failed to parse extracted JSON: ${jsonSlice.slice(0, 200)}`);
+  }
   if (!Array.isArray(parsed)) throw new Error("Expected a JSON array from extraction");
-  return parsed;
+  return parsed as ExtractedRow[];
 }
