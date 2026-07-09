@@ -3,9 +3,11 @@ import { prisma } from "@/lib/db";
 import { extractMetricsFromScreenshots } from "@/lib/anthropicVision";
 
 // Step 2-3 of the manual upload flow: takes uploaded screenshots, runs
-// vision extraction, stages the results as status="pending" rows. Does
-// NOT touch point_events or raw_daily_metrics yet -- that only happens
-// after a human reviews and confirms (see /confirm).
+// vision extraction, stages the results as status="pending" rows, and
+// permanently logs the upload (with the actual images) so anyone can
+// revisit what was uploaded and when -- see UploadLog/UploadedImage.
+// Does NOT touch point_events or raw_daily_metrics yet -- that only
+// happens after a human reviews and confirms (see /confirm).
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const participantId = formData.get("participantId") as string | null;
@@ -22,11 +24,17 @@ export async function POST(req: NextRequest) {
     const images = await Promise.all(
       files.map(async (file) => {
         const buffer = Buffer.from(await file.arrayBuffer());
-        return { base64: buffer.toString("base64"), mediaType: file.type || "image/png" };
+        return {
+          fileName: file.name || null,
+          base64: buffer.toString("base64"),
+          mediaType: file.type || "image/png",
+        };
       })
     );
 
-    const extracted = await extractMetricsFromScreenshots(images);
+    const extracted = await extractMetricsFromScreenshots(
+      images.map((i) => ({ base64: i.base64, mediaType: i.mediaType }))
+    );
 
     const saved = [];
     for (const row of extracted) {
@@ -52,6 +60,26 @@ export async function POST(req: NextRequest) {
       });
       saved.push(entry);
     }
+
+    const datesFound = extracted.map((r) => r.date).filter(Boolean).sort();
+    const summary =
+      datesFound.length > 0
+        ? `${datesFound.length} day(s) extracted: ${datesFound.join(", ")}`
+        : "No dates could be extracted";
+
+    await prisma.uploadLog.create({
+      data: {
+        participantId,
+        extractedSummary: summary,
+        images: {
+          create: images.map((img) => ({
+            fileName: img.fileName,
+            mediaType: img.mediaType,
+            base64Data: img.base64,
+          })),
+        },
+      },
+    });
 
     saved.sort((a, b) => b.date.getTime() - a.date.getTime());
     return NextResponse.json({ entries: saved });

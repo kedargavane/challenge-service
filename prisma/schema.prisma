@@ -45,6 +45,7 @@ model Participant {
   bodyMetrics         BodyMetric[]
   rawDailyMetrics     RawDailyMetric[]
   manualMetricEntries ManualMetricEntry[]
+  uploadLogs          UploadLog[]
 
   @@unique([challengeId, openWearablesUserId])
   @@map("participants")
@@ -113,6 +114,29 @@ model ManualMetricEntry {
 
   @@unique([participantId, date])
   @@map("manual_metric_entries")
+}
+
+model UploadLog {
+  id               String          @id @default(cuid())
+  participantId    String          @map("participant_id")
+  participant      Participant     @relation(fields: [participantId], references: [id])
+  uploadedAt       DateTime        @default(now()) @map("uploaded_at")
+  extractedSummary String?         @map("extracted_summary")
+  images           UploadedImage[]
+
+  @@map("upload_logs")
+}
+
+model UploadedImage {
+  id          String    @id @default(cuid())
+  uploadLogId String    @map("upload_log_id")
+  uploadLog   UploadLog @relation(fields: [uploadLogId], references: [id])
+  fileName    String?   @map("file_name")
+  mediaType   String    @map("media_type")
+  base64Data  String    @map("base64_data") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("uploaded_images")
 }
 
 model BodyMetric {

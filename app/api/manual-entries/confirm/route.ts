@@ -7,6 +7,11 @@ import { RULES } from "@/lib/rules";
 // writes into point_events + raw_daily_metrics with source="manual" so
 // automated reconciliation never overwrites them (see lib/scoring.ts
 // and lib/rawMetrics.ts upsert functions).
+//
+// Raw values are always saved regardless of date -- people can upload
+// screenshots from before the challenge started just to have the data
+// on record -- but points are only ever awarded for dates that actually
+// fall within the participant's challenge window.
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const entries: Array<{
@@ -18,9 +23,13 @@ export async function POST(req: NextRequest) {
   }> = body.entries ?? [];
 
   let count = 0;
+  let outsideRangeCount = 0;
 
   for (const e of entries) {
-    const existing = await prisma.manualMetricEntry.findUnique({ where: { id: e.id } });
+    const existing = await prisma.manualMetricEntry.findUnique({
+      where: { id: e.id },
+      include: { participant: { include: { challenge: true } } },
+    });
     if (!existing) continue;
 
     const updated = await prisma.manualMetricEntry.update({
@@ -54,6 +63,18 @@ export async function POST(req: NextRequest) {
         source: "manual",
       },
     });
+
+    const challenge = existing.participant.challenge;
+    const dateStr = updated.date.toISOString().slice(0, 10);
+    const challengeStart = challenge.startDate.toISOString().slice(0, 10);
+    const challengeEnd = challenge.endDate.toISOString().slice(0, 10);
+    const inRange = dateStr >= challengeStart && dateStr <= challengeEnd;
+
+    if (!inRange) {
+      outsideRangeCount += 1;
+      count += 1;
+      continue;
+    }
 
     if (updated.steps != null && updated.steps >= RULES.steps.thresholdPerDay) {
       await prisma.pointEvent.upsert({
@@ -95,7 +116,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (updated.workoutDurationMinutes != null && updated.workoutDurationMinutes > RULES.workout.minMinutes) {
+    if (updated.workoutDurationMinutes != null && updated.workoutDurationMinutes >= RULES.workout.minMinutes) {
       await prisma.pointEvent.upsert({
         where: {
           participantId_activityType_occurredDate: {
@@ -118,5 +139,5 @@ export async function POST(req: NextRequest) {
     count += 1;
   }
 
-  return NextResponse.json({ ok: true, count });
+  return NextResponse.json({ ok: true, count, outsideRangeCount });
 }

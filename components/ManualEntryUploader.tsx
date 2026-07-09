@@ -15,8 +15,6 @@ type PendingEntry = {
   workoutDurationMinutes: number | null;
 };
 
-// Four-step flow: 1) pick a person, 2) upload screenshots, 3) AI extracts
-// + shows editable rows, 4) confirm writes to the DB and scores it.
 export default function ManualEntryUploader({ participants }: { participants: Participant[] }) {
   const [step, setStep] = useState<"select" | "upload" | "review">("select");
   const [selected, setSelected] = useState<Participant | null>(null);
@@ -95,7 +93,11 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Save failed");
 
-      setSavedMsg(`Saved and scored ${data.count} day(s) for ${selected?.displayName}.`);
+      const rangeNote =
+        data.outsideRangeCount > 0
+          ? ` (${data.outsideRangeCount} day(s) were outside the challenge window -- data saved, no points awarded)`
+          : "";
+      setSavedMsg(`Saved and scored ${data.count} day(s) for ${selected?.displayName}.${rangeNote}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -104,7 +106,6 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
     }
   }
 
-  // Step 1: pick a person
   if (step === "select") {
     return (
       <div className={styles.userGrid}>
@@ -117,7 +118,6 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
     );
   }
 
-  // Step 2: upload screenshots
   if (step === "upload") {
     return (
       <div>
@@ -151,7 +151,6 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
     );
   }
 
-  // Step 3 + 4: review, edit, confirm
   return (
     <div>
       <button className={styles.backLink} onClick={reset}>

@@ -119,7 +119,7 @@ export async function scoreWorkoutEvents(
   }
 
   for (const [date, totalMinutes] of Object.entries(minutesByDate)) {
-    if (totalMinutes > RULES.workout.minMinutes) {
+    if (totalMinutes >= RULES.workout.minMinutes) {
       await upsertPoint(participantId, "workout", date, RULES.workout.points);
     }
   }
