@@ -6,27 +6,27 @@ import { useEffect, useState } from "react";
 // (always points at the current version of the file, freely licensed).
 const SLIDES = [
   {
-    src: "https://upload.wikimedia.org/wikipedia/commons/e/ee/Sagrada_Familia_01.jpg",
+    src: "/spain/sagrada-familia.jpg",
     quote: "Still fewer steps than climbing this tower would give you.",
     caption: "Sagrada Família, Barcelona",
   },
   {
-    src: "https://upload.wikimedia.org/wikipedia/commons/7/7a/Park_Guell_Dragon_Fountain.JPG",
+    src: "/spain/park-guell.jpg",
     quote: "Gaudí didn't design stairs for people who skip leg day.",
     caption: "Park Güell, Barcelona",
   },
   {
-    src: "https://upload.wikimedia.org/wikipedia/commons/8/8c/The_whole_Alhambra_Granada_Spain.jpg",
+    src: "/spain/alhambra.jpg",
     quote: "A thousand years old and still in better shape than your 8,000 steps today.",
     caption: "The Alhambra, Granada",
   },
   {
-    src: "https://upload.wikimedia.org/wikipedia/commons/e/ed/Flamenco_Dancer.jpg",
+    src: "/spain/flamenco.jpg",
     quote: "Burns more calories than scrolling the leaderboard, probably.",
     caption: "Flamenco, Andalusia",
   },
   {
-    src: "https://upload.wikimedia.org/wikipedia/commons/5/54/Marbella_Beach%2C_Costa_Del_Sol%2C_Spain_-_Sept_2008.jpg",
+    src: "/spain/costa-del-sol.jpg",
     quote: "Beach body status: still syncing.",
     caption: "Costa del Sol, Marbella",
   },
