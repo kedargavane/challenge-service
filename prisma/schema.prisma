@@ -33,6 +33,11 @@ model Participant {
   // participant has multiple overlapping sources (e.g. a phone + a watch)
   // and you want to guarantee scoring only counts one specific device.
   preferredProvider   String?      @map("preferred_provider")
+  scoringMode         String       @default("standard") @map("scoring_mode")
+  participantStartDate DateTime?   @db.Date @map("participant_start_date")
+  startingWeightKg    Float?       @map("starting_weight_kg")
+  weightGoalKg        Float?       @map("weight_goal_kg")
+  weightMilestoneKg   Float?       @default(0.5) @map("weight_milestone_kg")
   // Only used when preferredProvider is set: raw /timeseries records have
   // no zone_offset, so bucketing steps into calendar days requires an
   // explicit offset for this participant. Fixed for the duration of a

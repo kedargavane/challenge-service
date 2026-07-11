@@ -5,12 +5,19 @@ export type MetricSet = { steps: boolean; sleep: boolean; workout: boolean };
 export type ParticipantData = {
   id: string;
   name: string;
-  totals: { steps: number; sleep: number; workout: number };
+  totals: { steps: number; sleep: number; workout: number; weight: number };
   total: number;
   metByDate: Record<string, MetricSet>;
   currentStreak: number;
   bestStreak: number;
   latestWeightKg: number | null;
+  scoringMode: string;
+  // Each participant's own max is computed differently depending on
+  // scoringMode -- see getChallengeData(). percentComplete normalizes
+  // across both kinds so people on different windows/metrics are still
+  // comparable on one number.
+  ownMaxPossiblePoints: number;
+  percentComplete: number;
 };
 
 export type ChallengeData = {
@@ -68,10 +75,10 @@ export async function getChallengeData(): Promise<ChallengeData> {
 
   const challenge = participants[0]?.challenge ?? null;
   const today = toDateStr(new Date());
-  const startDate = challenge ? toDateStr(new Date(challenge.startDate)) : today;
-  const endDateRaw = challenge ? toDateStr(new Date(challenge.endDate)) : today;
-  const gridEnd = endDateRaw < today ? endDateRaw : today;
-  const days = challenge ? buildDayList(startDate, gridEnd) : [];
+  const challengeStart = challenge ? toDateStr(new Date(challenge.startDate)) : today;
+  const challengeEndRaw = challenge ? toDateStr(new Date(challenge.endDate)) : today;
+  const gridEnd = challengeEndRaw < today ? challengeEndRaw : today;
+  const days = challenge ? buildDayList(challengeStart, gridEnd) : [];
   const maxPossiblePoints = days.length * 3;
 
   const daysLeft = challenge
@@ -80,13 +87,14 @@ export async function getChallengeData(): Promise<ChallengeData> {
 
   const participantData: ParticipantData[] = participants
     .map((p) => {
-      const totals = { steps: 0, sleep: 0, workout: 0 };
+      const totals = { steps: 0, sleep: 0, workout: 0, weight: 0 };
       const metByDate: Record<string, MetricSet> = {};
 
       for (const e of p.pointEvents) {
         if (e.activityType in totals) {
           totals[e.activityType as keyof typeof totals] += e.points;
         }
+        if (e.activityType === "weight") continue; // no daily grid dot for this one
         const dateKey = toDateStr(new Date(e.occurredDate));
         if (!metByDate[dateKey]) metByDate[dateKey] = { steps: false, sleep: false, workout: false };
         if (e.activityType === "steps") metByDate[dateKey].steps = true;
@@ -94,12 +102,31 @@ export async function getChallengeData(): Promise<ChallengeData> {
         if (e.activityType === "workout") metByDate[dateKey].workout = true;
       }
 
-      const total = totals.steps + totals.sleep + totals.workout;
+      const total = totals.steps + totals.sleep + totals.workout + totals.weight;
       const { current, best } = computeStreaks(days, metByDate);
 
       const latestWeight = p.bodyMetrics
         .slice()
         .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+
+      // Own max: standard participants get day-based (their own
+      // effective start date to today/challenge end); weight_only
+      // participants get a fixed milestone-count max instead.
+      let ownMaxPossiblePoints: number;
+      if (p.scoringMode === "weight_only") {
+        const goal = p.weightGoalKg ?? 0;
+        const milestone = p.weightMilestoneKg ?? 0.5;
+        ownMaxPossiblePoints = milestone > 0 ? Math.round(goal / milestone) : 0;
+      } else {
+        const effectiveStart = p.participantStartDate
+          ? toDateStr(new Date(p.participantStartDate))
+          : challengeStart;
+        const ownStart = effectiveStart > gridEnd ? gridEnd : effectiveStart; // clamp if joining in the future somehow
+        const ownDays = buildDayList(ownStart, gridEnd).length;
+        ownMaxPossiblePoints = ownDays * 3;
+      }
+
+      const percentComplete = ownMaxPossiblePoints > 0 ? Math.round((total / ownMaxPossiblePoints) * 100) : 0;
 
       return {
         id: p.id,
@@ -110,9 +137,12 @@ export async function getChallengeData(): Promise<ChallengeData> {
         currentStreak: current,
         bestStreak: best,
         latestWeightKg: latestWeight?.weightKg ?? null,
+        scoringMode: p.scoringMode,
+        ownMaxPossiblePoints,
+        percentComplete,
       };
     })
-    .sort((a, b) => b.total - a.total);
+    .sort((a, b) => b.percentComplete - a.percentComplete);
 
   return {
     challengeName: challenge?.name ?? null,

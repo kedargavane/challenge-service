@@ -53,7 +53,7 @@ export default async function LeaderboardPage() {
                   <ScoreGauge
                     label={r.name}
                     value={r.total}
-                    max={maxPossiblePoints}
+                    max={r.ownMaxPossiblePoints}
                     accent={GAUGE_ACCENTS[i % GAUGE_ACCENTS.length]}
                   />
                   <StreakBadge current={r.currentStreak} best={r.bestStreak} />
@@ -84,7 +84,12 @@ export default async function LeaderboardPage() {
                   <span className={styles.statLabel}>Weight</span>
                   <span className={styles.statValue}>{r.latestWeightKg != null ? `${r.latestWeightKg} kg` : "—"}</span>
                 </div>
-                <div className={styles.total}>{r.total}</div>
+                <div className={styles.total}>
+                  {r.total}
+                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-muted)", marginLeft: 4 }}>
+                    ({r.percentComplete}%)
+                  </span>
+                </div>
               </div>
             ))}
           </div>
