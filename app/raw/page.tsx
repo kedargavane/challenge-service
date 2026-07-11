@@ -26,8 +26,12 @@ export default async function RawPage({
   const selectedId = searchParams.participant ?? participants[0].id;
   const selected = participants.find((p) => p.id === selectedId) ?? participants[0];
 
+  const challenge = await prisma.challenge.findFirst();
   const rows = await prisma.rawDailyMetric.findMany({
-    where: { participantId: selected.id },
+    where: {
+      participantId: selected.id,
+      ...(challenge ? { date: { gte: challenge.startDate } } : {}),
+    },
     orderBy: { date: "desc" },
   });
 
