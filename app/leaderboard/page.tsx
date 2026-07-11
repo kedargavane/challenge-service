@@ -77,6 +77,10 @@ export default async function LeaderboardPage() {
                   <span className={styles.statLabel}>Workout</span>
                   <span className={styles.statValue}>{r.totals.workout}</span>
                 </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Weight</span>
+                  <span className={styles.statValue}>{r.latestWeightKg != null ? `${r.latestWeightKg} kg` : "—"}</span>
+                </div>
                 <div className={styles.total}>{r.total}</div>
               </div>
             ))}

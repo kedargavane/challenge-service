@@ -16,7 +16,12 @@ export default async function ComparePage() {
         <p className={styles.daysLeft}>{data.days.length} days of data</p>
       </header>
       <CompareView
-        participants={data.participants.map((p) => ({ id: p.id, name: p.name, metByDate: p.metByDate }))}
+        participants={data.participants.map((p) => ({
+          id: p.id,
+          name: p.name,
+          metByDate: p.metByDate,
+          latestWeightKg: p.latestWeightKg,
+        }))}
         days={data.days}
       />
     </main>

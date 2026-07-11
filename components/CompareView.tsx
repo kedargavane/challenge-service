@@ -6,7 +6,7 @@ import styles from "./compare.module.css";
 import TrendLineChart from "@/components/TrendLineChart";
 
 type MetricSet = { steps: boolean; sleep: boolean; workout: boolean };
-type Participant = { id: string; name: string; metByDate: Record<string, MetricSet> };
+type Participant = { id: string; name: string; metByDate: Record<string, MetricSet>; latestWeightKg: number | null };
 
 const METRICS: { key: keyof MetricSet; label: string; accent: string }[] = [
   { key: "steps", label: "Steps", accent: "var(--amber)" },
@@ -63,6 +63,9 @@ export default function CompareView({ participants, days }: { participants: Part
                 type="button"
               >
                 {p.name}
+                {p.latestWeightKg != null && (
+                  <span style={{ opacity: 0.6, marginLeft: 6 }}>({p.latestWeightKg} kg)</span>
+                )}
               </button>
             ))}
           </div>

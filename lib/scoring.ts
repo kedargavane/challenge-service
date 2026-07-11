@@ -86,7 +86,7 @@ export async function scoreSleepSummary(
 
   const durationMinutes = summary.duration_minutes ?? 0;
   const hours = durationMinutes / 60;
-  if (hours > RULES.sleep.minHours) {
+  if (hours >= RULES.sleep.minHours) {
     await upsertPoint(participantId, "sleep", date, RULES.sleep.points);
   }
 }

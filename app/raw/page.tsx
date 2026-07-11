@@ -31,6 +31,14 @@ export default async function RawPage({
     orderBy: { date: "desc" },
   });
 
+  const bodyMetrics = await prisma.bodyMetric.findMany({
+    where: { participantId: selected.id },
+  });
+  const weightByDate: Record<string, number> = {};
+  for (const bm of bodyMetrics) {
+    if (bm.weightKg != null) weightByDate[bm.date.toISOString().slice(0, 10)] = bm.weightKg;
+  }
+
   return (
     <main className={leaderboardStyles.page}>
       <Nav active="raw" />
@@ -43,7 +51,7 @@ export default async function RawPage({
 
       <div className={styles.tabRow}>
         {participants.map((p) => (
-          <a
+          
             key={p.id}
             href={`/raw?participant=${p.id}`}
             className={p.id === selected.id ? `${styles.tab} ${styles.tabActive}` : styles.tab}
@@ -62,25 +70,30 @@ export default async function RawPage({
               <th>Sleep (hrs)</th>
               <th>Workouts</th>
               <th>Workout mins</th>
+              <th>Weight (kg)</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", color: "var(--ink-muted)", padding: 32 }}>
+                <td colSpan={6} style={{ textAlign: "center", color: "var(--ink-muted)", padding: 32 }}>
                   No data recorded yet for {selected.displayName}.
                 </td>
               </tr>
             ) : (
-              rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.date.toISOString().slice(0, 10)}</td>
-                  <td className={styles.numCell}>{r.steps ?? "—"}</td>
-                  <td className={styles.numCell}>{r.sleepHours ?? "—"}</td>
-                  <td className={styles.numCell}>{r.workoutCount ?? "—"}</td>
-                  <td className={styles.numCell}>{r.workoutDurationMinutes ?? "—"}</td>
-                </tr>
-              ))
+              rows.map((r) => {
+                const dateStr = r.date.toISOString().slice(0, 10);
+                return (
+                  <tr key={r.id}>
+                    <td>{dateStr}</td>
+                    <td className={styles.numCell}>{r.steps ?? "—"}</td>
+                    <td className={styles.numCell}>{r.sleepHours ?? "—"}</td>
+                    <td className={styles.numCell}>{r.workoutCount ?? "—"}</td>
+                    <td className={styles.numCell}>{r.workoutDurationMinutes ?? "—"}</td>
+                    <td className={styles.numCell}>{weightByDate[dateStr] ?? "—"}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

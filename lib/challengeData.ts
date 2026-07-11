@@ -10,6 +10,7 @@ export type ParticipantData = {
   metByDate: Record<string, MetricSet>;
   currentStreak: number;
   bestStreak: number;
+  latestWeightKg: number | null;
 };
 
 export type ChallengeData = {
@@ -35,11 +36,6 @@ function buildDayList(start: string, end: string): string[] {
   return days;
 }
 
-/**
- * Streak = consecutive "full house" days (all 3 metrics hit that day).
- * currentStreak counts backward from the most recent day in `days`.
- * bestStreak is the longest such run anywhere in the challenge so far.
- */
 function computeStreaks(days: string[], metByDate: Record<string, MetricSet>) {
   let best = 0;
   let running = 0;
@@ -52,8 +48,11 @@ function computeStreaks(days: string[], metByDate: Record<string, MetricSet>) {
   }
 
   let current = 0;
+  let sawAnyData = false;
   for (let i = days.length - 1; i >= 0; i--) {
     const met = metByDate[days[i]];
+    if (!met && !sawAnyData) continue;
+    sawAnyData = true;
     const fullHouse = !!(met && met.steps && met.sleep && met.workout);
     if (fullHouse) current += 1;
     else break;
@@ -64,7 +63,7 @@ function computeStreaks(days: string[], metByDate: Record<string, MetricSet>) {
 
 export async function getChallengeData(): Promise<ChallengeData> {
   const participants = await prisma.participant.findMany({
-    include: { pointEvents: true, challenge: true },
+    include: { pointEvents: true, challenge: true, bodyMetrics: true },
   });
 
   const challenge = participants[0]?.challenge ?? null;
@@ -98,7 +97,20 @@ export async function getChallengeData(): Promise<ChallengeData> {
       const total = totals.steps + totals.sleep + totals.workout;
       const { current, best } = computeStreaks(days, metByDate);
 
-      return { id: p.id, name: p.displayName, totals, total, metByDate, currentStreak: current, bestStreak: best };
+      const latestWeight = p.bodyMetrics
+        .slice()
+        .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+
+      return {
+        id: p.id,
+        name: p.displayName,
+        totals,
+        total,
+        metByDate,
+        currentStreak: current,
+        bestStreak: best,
+        latestWeightKg: latestWeight?.weightKg ?? null,
+      };
     })
     .sort((a, b) => b.total - a.total);
 
@@ -111,10 +123,6 @@ export async function getChallengeData(): Promise<ChallengeData> {
   };
 }
 
-/**
- * Builds cumulative points-over-time series for a line chart, one series
- * per participant. Each point sums 1 per metric hit that day.
- */
 export function buildCumulativeSeries(days: string[], participants: ParticipantData[]) {
   const running: Record<string, number> = {};
   for (const p of participants) running[p.name] = 0;

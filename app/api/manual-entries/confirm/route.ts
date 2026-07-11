@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (updated.sleepHours != null && updated.sleepHours > RULES.sleep.minHours) {
+    if (updated.sleepHours != null && updated.sleepHours >= RULES.sleep.minHours) {
       await prisma.pointEvent.upsert({
         where: {
           participantId_activityType_occurredDate: {
