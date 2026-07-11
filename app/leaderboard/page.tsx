@@ -5,6 +5,7 @@ import TrendLineChart from "@/components/TrendLineChart";
 import StreakBadge from "@/components/StreakBadge";
 import Nav from "@/components/Nav";
 import ReconcileButton from "@/components/ReconcileButton";
+import SpainSlideshow from "@/components/SpainSlideshow";
 import { getChallengeData, buildCumulativeSeries } from "@/lib/challengeData";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,8 @@ export default async function LeaderboardPage() {
           <ReconcileButton />
         </div>
       </header>
+
+      <SpainSlideshow />
 
       {rows.length === 0 ? (
         <div className={styles.empty}>No participants yet — add some to get started.</div>
