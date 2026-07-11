@@ -11,7 +11,7 @@ export default function HomePage() {
       </header>
       <SpainSlideshow />
       <div style={{ textAlign: "center", marginTop: -8 }}>
-        
+        <a
           href="/leaderboard"
           style={{
             display: "inline-block",

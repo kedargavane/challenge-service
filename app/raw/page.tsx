@@ -51,7 +51,7 @@ export default async function RawPage({
 
       <div className={styles.tabRow}>
         {participants.map((p) => (
-          
+          <a
             key={p.id}
             href={`/raw?participant=${p.id}`}
             className={p.id === selected.id ? `${styles.tab} ${styles.tabActive}` : styles.tab}
