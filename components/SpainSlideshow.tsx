@@ -30,6 +30,21 @@ const SLIDES = [
     quote: "Beach body status: still syncing.",
     caption: "Costa del Sol, Marbella",
   },
+  {
+    src: "/spain/la-tomatina.jpg",
+    quote: "Dodging tomatoes burns more calories than you'd think.",
+    caption: "La Tomatina, Buñol",
+  },
+  {
+    src: "/spain/moneyheist.jpg",
+    quote: "The only heist here is stealing back your steps from the couch.",
+    caption: "Money Heist, Spain",
+  },
+  {
+    src: "/spain/tapas.jpg",
+    quote: "Small plates, big steps needed to work them off.",
+    caption: "Tapas, everywhere",
+  },
 ];
 
 export default function SpainSlideshow() {
