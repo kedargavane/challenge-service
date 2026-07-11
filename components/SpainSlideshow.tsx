@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+// Images from Wikimedia Commons via the stable Special:FilePath redirect
+// (always points at the current version of the file, freely licensed).
 const SLIDES = [
   {
     src: "https://commons.wikimedia.org/wiki/Special:FilePath/Sagrada_Familia_01.jpg",
@@ -64,36 +66,54 @@ export default function SpainSlideshow() {
             position: "absolute",
             inset: 0,
             width: "100%",
-cat > app/page.tsx << 'ENDOFFILE'
-import Nav from "@/components/Nav";
-import SpainSlideshow from "@/components/SpainSlideshow";
-import styles from "./leaderboard/leaderboard.module.css";
+            height: "100%",
+            objectFit: "cover",
+            opacity: i === index ? 1 : 0,
+            transition: "opacity 1s ease-in-out",
+          }}
+        />
+      ))}
 
-export default function HomePage() {
-  return (
-    <main className={styles.page}>
-      <Nav active="leaderboard" />
-      <header className={styles.header}>
-        <h1>LGMF Spain-Fit Challenge</h1>
-      </header>
-      <SpainSlideshow />
-      <div style={{ textAlign: "center", marginTop: -8 }}>
-        
-          href="/leaderboard"
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0.05) 50%)",
+        }}
+      />
+
+      <div style={{ position: "absolute", bottom: 20, left: 24, right: 24, color: "white" }}>
+        <p
           style={{
-            display: "inline-block",
-            fontSize: 14,
-            fontWeight: 600,
-            padding: "12px 24px",
-            borderRadius: 8,
-            background: "var(--amber)",
-            color: "white",
-            textDecoration: "none",
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: 20,
+            marginBottom: 6,
+            textShadow: "0 2px 8px rgba(0,0,0,0.5)",
           }}
         >
-          View the leaderboard →
-        </a>
+          {slide.quote}
+        </p>
+        <p style={{ fontSize: 12, opacity: 0.85 }}>{slide.caption}</p>
       </div>
-    </main>
+
+      <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 6 }}>
+        {SLIDES.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setIndex(i)}
+            aria-label={`Go to slide ${i + 1}`}
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              border: "none",
+              cursor: "pointer",
+              background: i === index ? "white" : "rgba(255,255,255,0.4)",
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
