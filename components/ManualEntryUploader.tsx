@@ -77,9 +77,11 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
 
   function updateEntry(id: string, field: keyof PendingEntry, value: string) {
     setEntries((prev) =>
-      prev.map((e) =>
-        e.id === id ? { ...e, [field]: value === "" ? null : Number(value) } : e
-      )
+      prev.map((e) => {
+        if (e.id !== id) return e;
+        if (field === "date") return { ...e, date: value };
+        return { ...e, [field]: value === "" ? null : Number(value) };
+      })
     );
   }
 
@@ -108,6 +110,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
     }
   }
 
+  // Step 1: pick a person
   if (step === "select") {
     return (
       <div className={styles.userGrid}>
@@ -120,6 +123,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
     );
   }
 
+  // Step 2: upload screenshots
   if (step === "upload") {
     return (
       <div>
@@ -146,13 +150,14 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
           onClick={processScreenshots}
           disabled={files.length === 0 || processing}
         >
-          {processing ? "Processing…" : "Process screenshots"}
+          {processing ? "Processing₦◼ : "Process screenshots"}
         </button>
         {error && <p className={styles.errorMsg}>{error}</p>}
       </div>
     );
   }
 
+  // Step 3 + 4: review, edit, confirm
   return (
     <div>
       <button className={styles.backLink} onClick={reset}>
@@ -160,7 +165,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
       </button>
       <p style={{ marginBottom: 12 }}>
         Review extracted data for <strong>{selected?.displayName}</strong> — edit anything that looks
-        wrong before saving. Weight is never scored — it's just saved for comparison.
+        wrong before saving.
       </p>
       <table className={styles.reviewTable}>
         <thead>
@@ -176,7 +181,13 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
         <tbody>
           {entries.map((e) => (
             <tr key={e.id}>
-              <td>{e.date}</td>
+              <td>
+                <input
+                  type="date"
+                  value={e.date}
+                  onChange={(ev) => updateEntry(e.id, "date", ev.target.value)}
+                />
+              </td>
               <td>
                 <input
                   type="number"
@@ -220,7 +231,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
         </tbody>
       </table>
       <button className={styles.primaryButton} onClick={confirmAndSave} disabled={saving}>
-        {saving ? "Saving…" : "Confirm & save"}
+        {saving ? "Saving₦" : "Confirm & save"}
       </button>
       {error && <p className={styles.errorMsg}>{error}</p>}
       {savedMsg && <p className={styles.statusMsg}>{savedMsg}</p>}
