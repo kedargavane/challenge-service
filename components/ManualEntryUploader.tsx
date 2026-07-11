@@ -16,6 +16,8 @@ type PendingEntry = {
   weightKg: number | null;
 };
 
+// Four-step flow: 1) pick a person, 2) upload screenshots, 3) AI extracts
+// + shows editable rows, 4) confirm writes to the DB and scores it.
 export default function ManualEntryUploader({ participants }: { participants: Participant[] }) {
   const [step, setStep] = useState<"select" | "upload" | "review">("select");
   const [selected, setSelected] = useState<Participant | null>(null);
@@ -134,7 +136,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
           Uploading for <strong>{selected?.displayName}</strong>
         </p>
         <div className={styles.dropzone}>
-          <p>Upload screenshots (steps, sleep, workout, or weight/scale screens — any mix, multiple at once)</p>
+          <p>Upload screenshots (steps, sleep, or workout screens — any mix, multiple at once)</p>
           <input
             type="file"
             accept="image/*"
@@ -150,7 +152,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
           onClick={processScreenshots}
           disabled={files.length === 0 || processing}
         >
-          {processing ? "Processing₦◼ : "Process screenshots"}
+          {processing ? "Processing…" : "Process screenshots"}
         </button>
         {error && <p className={styles.errorMsg}>{error}</p>}
       </div>
@@ -231,7 +233,7 @@ export default function ManualEntryUploader({ participants }: { participants: Pa
         </tbody>
       </table>
       <button className={styles.primaryButton} onClick={confirmAndSave} disabled={saving}>
-        {saving ? "Saving₦" : "Confirm & save"}
+        {saving ? "Saving…" : "Confirm & save"}
       </button>
       {error && <p className={styles.errorMsg}>{error}</p>}
       {savedMsg && <p className={styles.statusMsg}>{savedMsg}</p>}
