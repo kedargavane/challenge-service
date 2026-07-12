@@ -1,3 +1,11 @@
+/**
+ * Extracts health metrics from uploaded screenshots (Apple Health, Garmin
+ * Connect, Whoop, etc.) using Claude's vision capability. Requires
+ * ANTHROPIC_API_KEY set as an env var on this service -- get one from
+ * console.anthropic.com. This is a real production API call, separate
+ * from anything in the chat environment.
+ */
+
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 
 export type ExtractedRow = {
@@ -34,6 +42,9 @@ Rules:
 - Only include fields you can actually read from that image -- use null for anything not shown.
 - If the same date appears across multiple screenshots with different metric types, merge them into one row per date in your final output.
 - Convert sleep duration to decimal hours (e.g. "8h 12m" -> 8.2).
+- If the screenshot literally shows "Today" instead of a specific date (common on a phone's current-day summary view), output the literal string "TODAY" instead of guessing a calendar date.
+- If there's no date visible at all -- e.g. a bare weight scale reading with just a number -- output null for the date field. Don't guess.
+- Otherwise, dates may appear in different formats (e.g. "6 Jul", "07/06", "6 Jul 2026") -- always output as YYYY-MM-DD. If no year is visible in the screenshot, use 2026 -- this data is exclusively for a July-August 2026 fitness challenge, so 2026 is correct whenever the year isn't shown. Do not infer or guess any other year.
 - If a number is genuinely illegible, omit that field rather than guessing.`,
     },
   ];
@@ -67,6 +78,10 @@ Rules:
   const textBlock = data.content.find((b: any) => b.type === "text");
   if (!textBlock) throw new Error("No text response from vision extraction");
 
+  // Claude sometimes adds a sentence or two before/after the JSON despite
+  // instructions to return only JSON. Extract the array substring
+  // directly (first '[' to matching last ']') instead of assuming the
+  // whole response is clean JSON.
   const text = textBlock.text;
   const start = text.indexOf("[");
   const end = text.lastIndexOf("]");
