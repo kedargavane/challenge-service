@@ -5,6 +5,15 @@ import styles from "./raw.module.css";
 
 export const dynamic = "force-dynamic";
 
+type MergedRow = {
+  date: string;
+  steps: number | null;
+  sleepHours: number | null;
+  workoutCount: number | null;
+  workoutDurationMinutes: number | null;
+  weightKg: number | null;
+};
+
 export default async function RawPage({
   searchParams,
 }: {
@@ -27,21 +36,50 @@ export default async function RawPage({
   const selected = participants.find((p) => p.id === selectedId) ?? participants[0];
 
   const challenge = await prisma.challenge.findFirst();
-  const rows = await prisma.rawDailyMetric.findMany({
-    where: {
-      participantId: selected.id,
-      ...(challenge ? { date: { gte: challenge.startDate } } : {}),
-    },
-    orderBy: { date: "desc" },
+  const dateFilter = challenge ? { gte: challenge.startDate } : undefined;
+
+  const rawRows = await prisma.rawDailyMetric.findMany({
+    where: { participantId: selected.id, ...(dateFilter ? { date: dateFilter } : {}) },
   });
 
-  const bodyMetrics = await prisma.bodyMetric.findMany({
-    where: { participantId: selected.id },
+  const bodyMetricRows = await prisma.bodyMetric.findMany({
+    where: { participantId: selected.id, ...(dateFilter ? { date: dateFilter } : {}) },
   });
-  const weightByDate: Record<string, number> = {};
-  for (const bm of bodyMetrics) {
-    if (bm.weightKg != null) weightByDate[bm.date.toISOString().slice(0, 10)] = bm.weightKg;
+
+  // Merge both sources by date -- this matters for weight_only participants
+  // (like Krishna), who have body_metrics rows but no raw_daily_metrics
+  // rows at all, since steps/sleep/workout scoring never runs for them.
+  const merged: Record<string, MergedRow> = {};
+
+  for (const r of rawRows) {
+    const dateStr = r.date.toISOString().slice(0, 10);
+    merged[dateStr] = {
+      date: dateStr,
+      steps: r.steps,
+      sleepHours: r.sleepHours,
+      workoutCount: r.workoutCount,
+      workoutDurationMinutes: r.workoutDurationMinutes,
+      weightKg: null,
+    };
   }
+
+  for (const bm of bodyMetricRows) {
+    const dateStr = bm.date.toISOString().slice(0, 10);
+    if (!merged[dateStr]) {
+      merged[dateStr] = {
+        date: dateStr,
+        steps: null,
+        sleepHours: null,
+        workoutCount: null,
+        workoutDurationMinutes: null,
+        weightKg: bm.weightKg,
+      };
+    } else {
+      merged[dateStr].weightKg = bm.weightKg;
+    }
+  }
+
+  const rows = Object.values(merged).sort((a, b) => (a.date < b.date ? 1 : -1));
 
   return (
     <main className={leaderboardStyles.page}>
@@ -85,20 +123,17 @@ export default async function RawPage({
                 </td>
               </tr>
             ) : (
-              rows.map((r) => {
-                const dateStr = r.date.toISOString().slice(0, 10);
-                return (
-                  <tr key={r.id}>
-                    <td>{dateStr}</td>
-                    <td className={styles.numCell}>{r.steps ?? "—"}</td>
-                    <td className={styles.numCell}>{r.sleepHours ?? "—"}</td>
-                    <td className={styles.numCell}>{r.workoutCount ?? "—"}</td>
-                    <td className={styles.numCell}>{r.workoutDurationMinutes ?? "—"}</td>
-                    <td className={styles.numCell}>{weightByDate[dateStr] ?? "—"}</td>
-                  </tr>
-                );
-              })
-            )}
+              rows.map((r) => (
+                <tr key={r.date}>
+                  <td>{r.date}</td>
+                  <td className={styles.numCell}>{r.steps ?? "—"}</td>
+                  <td className={styles.numCell}>{r.sleepHours ?? "—"}</td>
+                  <td className={styles.numCell}>{r.workoutCount ?? "—"}</td>
+                  <td className={styles.numCell}>{r.workoutDurationMinutes ?? "—"}</td>
+                  <td className={styles.numCell}>{r.weightKg ?? "—"}</td>
+                </tr>
+              ))
+            }
           </tbody>
         </table>
       </div>
