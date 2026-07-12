@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import Nav from "@/components/Nav";
+import Link from "next/link";
 import leaderboardStyles from "../leaderboard/leaderboard.module.css";
 import styles from "./raw.module.css";
 
@@ -46,9 +47,6 @@ export default async function RawPage({
     where: { participantId: selected.id, ...(dateFilter ? { date: dateFilter } : {}) },
   });
 
-  // Merge both sources by date -- this matters for weight_only participants
-  // (like Krishna), who have body_metrics rows but no raw_daily_metrics
-  // rows at all, since steps/sleep/workout scoring never runs for them.
   const merged: Record<string, MergedRow> = {};
 
   for (const r of rawRows) {
@@ -93,13 +91,13 @@ export default async function RawPage({
 
       <div className={styles.tabRow}>
         {participants.map((p) => (
-          <a
+          <Link
             key={p.id}
             href={`/raw?participant=${p.id}`}
             className={p.id === selected.id ? `${styles.tab} ${styles.tabActive}` : styles.tab}
           >
             {p.displayName}
-          </a>
+          </Link>
         ))}
       </div>
 
@@ -126,14 +124,14 @@ export default async function RawPage({
               rows.map((r) => (
                 <tr key={r.date}>
                   <td>{r.date}</td>
-                  <td className={styles.numCell}>{r.steps ?? "—"}</td>
-                  <td className={styles.numCell}>{r.sleepHours ?? "—"}</td>
-                  <td className={styles.numCell}>{r.workoutCount ?? "—"}</td>
-                  <td className={styles.numCell}>{r.workoutDurationMinutes ?? "—"}</td>
-                  <td className={styles.numCell}>{r.weightKg ?? "—"}</td>
+                  <td className={styles.numCell}>{r.steps ?? "-"}</td>
+                  <td className={styles.numCell}>{r.sleepHours ?? "-"}</td>
+                  <td className={styles.numCell}>{r.workoutCount ?? "-"}</td>
+                  <td className={styles.numCell}>{r.workoutDurationMinutes ?? "-"}</td>
+                  <td className={styles.numCell}>{r.weightKg ?? "-"}</td>
                 </tr>
               ))
-            }
+            )}
           </tbody>
         </table>
       </div>
