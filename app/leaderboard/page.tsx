@@ -54,6 +54,7 @@ export default async function LeaderboardPage() {
                     label={r.name}
                     value={r.total}
                     max={r.ownMaxPossiblePoints}
+                    percent={r.percentComplete}
                     accent={GAUGE_ACCENTS[i % GAUGE_ACCENTS.length]}
                   />
                   <StreakBadge current={r.currentStreak} best={r.bestStreak} />

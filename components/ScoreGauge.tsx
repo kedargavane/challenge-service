@@ -2,11 +2,12 @@ type Props = {
   label: string;
   value: number;
   max: number;
+  percent: number;
   accent?: string;
 };
 
-export default function ScoreGauge({ label, value, max, accent = "--amber" }: Props) {
-  const pct = max > 0 ? Math.min(1, value / max) : 0;
+export default function ScoreGauge({ label, value, max, percent, accent = "--amber" }: Props) {
+  const pct = Math.min(1, Math.max(0, percent / 100));
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   const dash = circumference * pct;
@@ -35,10 +36,10 @@ export default function ScoreGauge({ label, value, max, accent = "--amber" }: Pr
           fill="var(--ink)"
           fontFamily="Space Grotesk, sans-serif"
         >
-          {value}
+          {percent}%
         </text>
         <text x="50" y="63" textAnchor="middle" fontSize="9" fill="var(--ink-muted)" fontFamily="Inter, sans-serif">
-          / {max} pts
+          {value} pts so far
         </text>
       </svg>
       <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{label}</span>
